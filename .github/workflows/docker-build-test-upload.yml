@@ -3,6 +3,8 @@ name: Download a parent image, build a new one, and test it; upload the image, t
 env:
   REGISTRY: quay.io
   OWNER: ${{ github.repository_owner }}
+  ROOT_IMAGE: ubuntu:26.04
+  PYTHON_VERSION: "3.14"
 
 on:
   workflow_call:
@@ -70,7 +72,7 @@ jobs:
 
       - name: Pull base ubuntu image 📥
         if: inputs.parent-image == ''
-        run: docker pull ubuntu:24.04
+        run: docker pull ${{ env.ROOT_IMAGE }}
         shell: bash
 
       - name: Build image 🛠
@@ -80,7 +82,9 @@ jobs:
             --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image }} \
             images/${{ inputs.image }}/${{ inputs.variant != 'default' && inputs.variant || '.' }}/ \
             --build-arg REGISTRY=${{ env.REGISTRY }} \
-            --build-arg OWNER=${{ env.OWNER }}
+            --build-arg OWNER=${{ env.OWNER }} \
+            --build-arg ROOT_IMAGE=${{ env.ROOT_IMAGE }} \
+            --build-arg PYTHON_VERSION=${{ env.PYTHON_VERSION }}
         env:
           DOCKER_BUILDKIT: 1
           # Full logs for CI build

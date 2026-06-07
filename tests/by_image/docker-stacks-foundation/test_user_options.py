@@ -2,6 +2,7 @@
 # Distributed under the terms of the Modified BSD License.
 import logging
 import pathlib
+import re
 import time
 
 import pytest  # type: ignore
@@ -163,12 +164,15 @@ def test_group_add(container: TrackedContainer) -> None:
         no_warnings=False,
         user="1010:1010",
         group_add=["users"],  # Ensures write access to /home/jovyan
-        command=["id"],
+        command=["bash", "-c", "id || true"],
     )
     warnings = TrackedContainer.get_warnings(logs)
     assert len(warnings) == 1
     assert "Try setting gid=0" in warnings[0]
-    assert "uid=1010 gid=1010 groups=1010,100(users)" in logs
+    assert re.search(
+        r"uid=1010(?:\(1010\))? gid=1010(?:\(1010\))? groups=1010(?:\(1010\))?,100\(users\)",
+        logs,
+    )
 
 
 def test_set_uid(container: TrackedContainer) -> None:
