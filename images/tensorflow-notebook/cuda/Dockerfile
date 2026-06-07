@@ -11,19 +11,18 @@ LABEL maintainer="Jupyter Project <jupyter@googlegroups.com>"
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Pin protobuf version for tensorflow 2.20 to avoid user warning.
-# The fix can be removed once tensorflow is built with newer version of protobuf:
-# https://github.com/tensorflow/tensorflow/issues/98980
+# Stable TensorFlow does not publish Python 3.14 wheels yet, so use nightly by default.
+# Override this arg once stable TensorFlow catches up.
+ARG TENSORFLOW_CUDA_PACKAGE=tf-nightly[and-cuda]
 RUN mamba install --yes \
-    'jupyter-server-proxy' \
-    "protobuf>=5.28.3,<6" && \
+    'jupyter-server-proxy' && \
     mamba clean --all -f -y && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
 # Install TensorFlow, CUDA and cuDNN with pip
-RUN pip install -v --no-cache-dir \
-    'tensorflow[and-cuda]' && \
+RUN pip install -v --no-cache-dir --pre \
+    "${TENSORFLOW_CUDA_PACKAGE}" && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
