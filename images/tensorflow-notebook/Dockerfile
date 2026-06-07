@@ -11,20 +11,20 @@ LABEL maintainer="Jupyter Project <jupyter@googlegroups.com>"
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Pin protobuf version for tensorflow 2.20 to avoid user warning.
-# The fix can be removed once tensorflow is built with newer version of protobuf:
-# https://github.com/tensorflow/tensorflow/issues/98980
+# Stable TensorFlow does not publish Python 3.14 wheels yet, so use nightly by default.
+# Override these args once stable TensorFlow catches up.
+ARG TENSORFLOW_PACKAGE=tf-nightly
+ARG TENSORFLOW_CPU_PACKAGE=tf-nightly-cpu
 RUN mamba install --yes \
-    'jupyter-server-proxy' \
-    'protobuf>=5.28.3,<6' && \
+    'jupyter-server-proxy' && \
     mamba clean --all -f -y && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
-# Install tensorflow with pip, on x86_64 tensorflow-cpu
-RUN [[ $(uname -m) = x86_64 ]] && TF_POSTFIX="-cpu" || TF_POSTFIX="" && \
-    pip install -v --no-cache-dir \
-    "tensorflow${TF_POSTFIX}" && \
+# Install tensorflow with pip, on x86_64 use the CPU-only wheel.
+RUN [[ $(uname -m) = x86_64 ]] && TF_PACKAGE="${TENSORFLOW_CPU_PACKAGE}" || TF_PACKAGE="${TENSORFLOW_PACKAGE}" && \
+    pip install -v --no-cache-dir --pre \
+    "${TF_PACKAGE}" && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 

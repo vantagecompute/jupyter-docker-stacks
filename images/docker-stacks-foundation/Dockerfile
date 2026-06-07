@@ -3,7 +3,7 @@
 
 # Ubuntu 24.04 (noble)
 # https://hub.docker.com/_/ubuntu/tags?page=1&name=noble
-ARG ROOT_IMAGE=ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
+ARG ROOT_IMAGE=ubuntu:26.04
 
 FROM $ROOT_IMAGE
 
@@ -95,7 +95,7 @@ RUN rm -rf "/home/${NB_USER}/.cache/"
 USER ${NB_UID}
 
 # Pin the Python version here, or set it to "default"
-ARG PYTHON_VERSION=3.13
+ARG PYTHON_VERSION=3.14
 
 # Setup work directory for backward-compatibility
 RUN mkdir "/home/${NB_USER}/work" && \

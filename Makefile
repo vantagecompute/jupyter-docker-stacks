@@ -3,8 +3,8 @@
 .PHONY: docs help test
 
 SHELL:=bash
-REGISTRY?=quay.io
-OWNER?=jupyter
+REGISTRY?=ghcr.io
+OWNER?=vantagecompute
 
 # Enable BuildKit for Docker build
 export DOCKER_BUILDKIT:=1
@@ -37,8 +37,8 @@ help:
 
 # Note that `ROOT_IMAGE` and `PYTHON_VERSION` arguments are only applicable to the `docker-stacks-foundation` image
 build/%: DOCKER_BUILD_ARGS?=
-build/%: ROOT_IMAGE?=ubuntu:24.04
-build/%: PYTHON_VERSION?=3.13
+build/%: ROOT_IMAGE?=ubuntu:26.04
+build/%: PYTHON_VERSION?=3.14
 build/%: ## build the latest image for a stack using the system's architecture
 	docker build $(DOCKER_BUILD_ARGS) --rm --force-rm \
 	  --tag "$(REGISTRY)/$(OWNER)/$(notdir $@)" \
