@@ -26,7 +26,7 @@ def common_arguments_parser(
         parser.add_argument(
             "--registry",
             required=True,
-            choices=["docker.io", "quay.io"],
+            choices=["docker.io", "ghcr.io", "quay.io"],
             help="Image registry",
         )
     if owner:

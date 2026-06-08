@@ -11,11 +11,6 @@ on:
         description: Variant tag prefix
         required: true
         type: string
-    secrets:
-      REGISTRY_USERNAME:
-        required: true
-      REGISTRY_TOKEN:
-        required: true
 
 permissions: {}
 
@@ -24,21 +19,17 @@ jobs:
     uses: ./.github/workflows/docker-tag-push.yml
     permissions:
       contents: read
+      packages: write
     with:
       image: ${{ inputs.image }}
       variant: ${{ inputs.variant }}
-    secrets:
-      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
   tag-merge:
     uses: ./.github/workflows/docker-tag-merge.yml
     permissions:
       contents: read
+      packages: write
     needs: tag-push
     with:
       image: ${{ inputs.image }}
       variant: ${{ inputs.variant }}
-    secrets:
-      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}

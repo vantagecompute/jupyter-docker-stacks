@@ -39,7 +39,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--registry",
         required=True,
-        choices=["docker.io", "quay.io"],
+        choices=["docker.io", "ghcr.io", "quay.io"],
         help="Image registry",
     )
     parser.addoption(

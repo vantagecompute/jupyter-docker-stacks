@@ -452,12 +452,10 @@ jobs:
     uses: ./.github/workflows/docker-tag-push-merge.yml
     permissions:
       contents: read
+      packages: write
     with:
       image: ${{ matrix.image }}
       variant: ${{ matrix.variant }}
-    secrets:
-      REGISTRY_USERNAME: ${{ secrets.QUAY_USERNAME }}
-      REGISTRY_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
     strategy:
       matrix:
         image:
@@ -522,12 +520,10 @@ jobs:
     uses: ./.github/workflows/docker-tag-push-merge.yml
     permissions:
       contents: read
+      packages: write
     with:
       image: ${{ matrix.image }}
       variant: ${{ matrix.variant }}
-    secrets:
-      REGISTRY_USERNAME: ${{ secrets.QUAY_USERNAME }}
-      REGISTRY_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
     strategy:
       matrix:
         image: [docker-stacks-foundation, base-notebook]

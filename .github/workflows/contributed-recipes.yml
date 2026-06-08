@@ -1,7 +1,7 @@
 name: Test the contributed recipes
 
 env:
-  REGISTRY: quay.io
+  REGISTRY: ghcr.io
   OWNER: ${{ github.repository_owner }}
 
 on:
@@ -60,7 +60,7 @@ jobs:
       contents: read
     timeout-minutes: 10
     needs: generate-matrix
-    if: github.repository_owner == 'jupyter' || github.repository_owner == 'mathbunnyru'
+    if: github.repository_owner == 'jupyter' || github.repository_owner == 'mathbunnyru' || github.repository_owner == 'vantagecompute'
 
     steps:
       - name: Checkout Repo ⚡️
