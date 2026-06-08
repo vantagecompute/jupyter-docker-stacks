@@ -1,9 +1,9 @@
 name: Download a Docker image and its tags from GitHub artifacts, apply them, and push the image to the Registry
 
 env:
-  REGISTRY: quay.io
+  REGISTRY: ghcr.io
   OWNER: ${{ github.repository_owner }}
-  PUSH_TO_REGISTRY: ${{ (github.repository_owner == 'jupyter' || github.repository_owner == 'mathbunnyru') && (github.ref == 'refs/heads/main' || github.event_name == 'schedule') }}
+  PUSH_TO_REGISTRY: ${{ github.repository_owner == 'vantagecompute' && (github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
 
 on:
   workflow_call:
@@ -20,11 +20,6 @@ on:
         description: Timeout in minutes
         default: 25
         type: number
-    secrets:
-      REGISTRY_USERNAME:
-        required: true
-      REGISTRY_TOKEN:
-        required: true
 
 permissions: {}
 
@@ -33,6 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      packages: write
     timeout-minutes: ${{ inputs.timeout-minutes }}
     strategy:
       matrix:
@@ -57,12 +53,9 @@ jobs:
       - name: Login to Registry 🔐
         if: env.PUSH_TO_REGISTRY == 'true'
         run: |
-          docker login ${{ env.REGISTRY }} \
-            --username ${{ secrets.REGISTRY_USERNAME }} \
-            --password ${{ secrets.REGISTRY_TOKEN }} || \
-          docker login ${{ env.REGISTRY }} \
-            --username ${{ secrets.REGISTRY_USERNAME }} \
-            --password ${{ secrets.REGISTRY_TOKEN }}
+          echo "${{ github.token }}" | docker login ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} \
+            --password-stdin
         shell: bash
         id: login
 
