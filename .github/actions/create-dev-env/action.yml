@@ -5,9 +5,26 @@ runs:
   using: composite
   steps:
     - name: Set Up Python 🐍
+      if: runner.environment == 'github-hosted'
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: 3.12
+
+    # setup-python has no builds for the Ubuntu release of every self-hosted
+    # runner, and a runner keeps its tool cache between jobs. There, use
+    # Python 3.12 from uv in a job-local virtualenv instead.
+    - name: Set Up uv 🐍
+      if: runner.environment != 'github-hosted'
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      with:
+        enable-cache: false
+
+    - name: Set Up Python in a virtualenv 🐍
+      if: runner.environment != 'github-hosted'
+      run: |
+        uv venv --seed --python 3.12 "$RUNNER_TEMP/venv"
+        echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      shell: bash
 
     - name: Install Dev Dependencies 📦
       run: |
@@ -19,7 +36,9 @@ runs:
     # More info: https://github.com/jupyter/docker-stacks/pull/2255
     # Can be removed after Docker Engine is updated
     # https://github.com/actions/runner-images/issues/11766
+    # Self-hosted runners already run a current Docker Engine.
     - name: Set Up Docker 🐳
+      if: runner.environment == 'github-hosted'
       uses: docker/setup-docker-action@0234bb73ccb40f0c430b795634f9247e2b5c2d23 # v5.2.0
       with:
         set-host: true

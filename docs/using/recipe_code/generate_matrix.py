@@ -6,7 +6,7 @@ from pathlib import Path
 
 THIS_DIR = Path(__file__).parent.resolve()
 
-RUNS_ON = ["ubuntu-24.04", "ubuntu-24.04-arm"]
+RUNS_ON = ["ubuntu-26.04", "ubuntu-26.04-arm"]
 ARM_INCOMPATIBLE_IMAGES = {"oracledb.dockerfile"}
 BASE_IMAGE_PREFIX = "ARG BASE_IMAGE="
 
@@ -23,7 +23,7 @@ def extract_base_image(dockerfile: Path) -> str:
 
 def get_platform(runs_on: str) -> str:
     """Get platform architecture based on runner"""
-    return "x86_64" if runs_on == "ubuntu-24.04" else "aarch64"
+    return "x86_64" if runs_on == "ubuntu-26.04" else "aarch64"
 
 
 def generate_matrix() -> dict[str, list[dict[str, str]]]:
@@ -36,7 +36,7 @@ def generate_matrix() -> dict[str, list[dict[str, str]]]:
 
         for run in RUNS_ON:
             # Skip ARM builds for incompatible images
-            if dockerfile_name in ARM_INCOMPATIBLE_IMAGES and run == "ubuntu-24.04-arm":
+            if dockerfile_name in ARM_INCOMPATIBLE_IMAGES and run == "ubuntu-26.04-arm":
                 continue
 
             configurations.append(

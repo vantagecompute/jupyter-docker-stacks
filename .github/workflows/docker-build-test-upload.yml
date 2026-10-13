@@ -40,9 +40,13 @@ on:
 
 permissions: {}
 
+# Set the repository variable USE_SELF_HOSTED_RUNNERS to "true" to run every
+# job below on the vantage-eng self-hosted runner group (X64, or ARM64 for an
+# arm runner). To widen or narrow the X64 set, set SELF_HOSTED_RUNS_ON to a
+# runs-on value in JSON.
 jobs:
   build-test-upload:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ vars.USE_SELF_HOSTED_RUNNERS == 'true' && fromJSON(inputs.runs-on == 'ubuntu-26.04-arm' && '{"group":"vantage-eng","labels":["ARM64"]}' || vars.SELF_HOSTED_RUNS_ON || '{"group":"vantage-eng","labels":["X64"]}') || inputs.runs-on }}
     permissions:
       contents: read
     timeout-minutes: ${{ inputs.timeout-minutes }}
