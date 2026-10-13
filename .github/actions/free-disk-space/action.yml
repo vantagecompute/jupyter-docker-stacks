@@ -4,7 +4,10 @@ description: "A GitHub Action to free up disk space on an Ubuntu GitHub Actions 
 runs:
   using: "composite"
   steps:
+    # Only GitHub-hosted runners carry these preinstalled toolchains. On a
+    # self-hosted runner this would delete the runner's own tools.
     - name: Installing rmz
+      if: runner.environment == 'github-hosted'
       shell: bash
       run: |
         curl -fsSL --tlsv1.2 --proto '=https' https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash > /dev/null 2>&1
@@ -12,6 +15,7 @@ runs:
         ln -s ~/.cargo/bin/rmz /usr/local/bin/rmz
 
     - name: Freeing up disk space
+      if: runner.environment == 'github-hosted'
       shell: bash
       run: |
         sudo rmz -f /usr/local/lib/android || true
