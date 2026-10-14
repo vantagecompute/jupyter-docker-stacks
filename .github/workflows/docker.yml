@@ -247,34 +247,6 @@ jobs:
     needs: x86_64-scipy
     if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
 
-  aarch64-tensorflow-cuda:
-    uses: ./.github/workflows/docker-build-test-upload.yml
-    permissions:
-      contents: read
-    with:
-      parent-image: scipy-notebook
-      image: tensorflow-notebook
-      variant: cuda
-      platform: aarch64
-      runs-on: ubuntu-26.04-arm
-      timeout-minutes: 25
-    needs: aarch64-scipy
-    if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
-
-  x86_64-tensorflow-cuda:
-    uses: ./.github/workflows/docker-build-test-upload.yml
-    permissions:
-      contents: read
-    with:
-      parent-image: scipy-notebook
-      image: tensorflow-notebook
-      variant: cuda
-      platform: x86_64
-      runs-on: ubuntu-26.04
-      timeout-minutes: 25
-    needs: x86_64-scipy
-    if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
-
   aarch64-pytorch:
     uses: ./.github/workflows/docker-build-test-upload.yml
     permissions:
@@ -298,34 +270,6 @@ jobs:
       platform: x86_64
       runs-on: ubuntu-26.04
       timeout-minutes: 20
-    needs: x86_64-scipy
-    if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
-
-  aarch64-pytorch-cuda12:
-    uses: ./.github/workflows/docker-build-test-upload.yml
-    permissions:
-      contents: read
-    with:
-      parent-image: scipy-notebook
-      image: pytorch-notebook
-      variant: cuda12
-      platform: aarch64
-      runs-on: ubuntu-26.04-arm
-      timeout-minutes: 25
-    needs: aarch64-scipy
-    if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
-
-  x86_64-pytorch-cuda12:
-    uses: ./.github/workflows/docker-build-test-upload.yml
-    permissions:
-      contents: read
-    with:
-      parent-image: scipy-notebook
-      image: pytorch-notebook
-      variant: cuda12
-      platform: x86_64
-      runs-on: ubuntu-26.04
-      timeout-minutes: 25
     needs: x86_64-scipy
     if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
 
@@ -474,10 +418,6 @@ jobs:
           ]
         variant: [default]
         include:
-          - image: tensorflow-notebook
-            variant: cuda
-          - image: pytorch-notebook
-            variant: cuda12
           - image: pytorch-notebook
             variant: cuda13
     needs:
@@ -489,9 +429,7 @@ jobs:
         aarch64-r,
         aarch64-julia,
         aarch64-tensorflow,
-        aarch64-tensorflow-cuda,
         aarch64-pytorch,
-        aarch64-pytorch-cuda12,
         aarch64-pytorch-cuda13,
         aarch64-datascience,
         aarch64-pyspark,
@@ -504,9 +442,7 @@ jobs:
         x86_64-r,
         x86_64-julia,
         x86_64-tensorflow,
-        x86_64-tensorflow-cuda,
         x86_64-pytorch,
-        x86_64-pytorch-cuda12,
         x86_64-pytorch-cuda13,
         x86_64-datascience,
         x86_64-pyspark,
