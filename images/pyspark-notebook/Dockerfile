@@ -77,7 +77,11 @@ USER ${NB_UID}
 # on which the Pandas API for Spark is built.
 # To find the right version, check the pandas version being installed here:
 # https://github.com/apache/spark/blob/<SPARK_VERSION>/dev/infra/Dockerfile
-ARG PANDAS_VERSION_SPEC="pandas>=2.2.3,<3"
+# A single-constraint spec: mamba records a range such as "pandas>=2.2.3,<3" in
+# conda-meta/history as pandas[version=">=2.2.3,<3"], which
+# `mamba env export --from-history --json` then emits as invalid JSON. "2"
+# means 2.*, so pandas stays below 3 as pyspark needs.
+ARG PANDAS_VERSION_SPEC="pandas=2"
 RUN mamba install --yes \
     'grpcio-status' \
     'grpcio' \
