@@ -1,8 +1,8 @@
 name: Merge single platform tags
 
 env:
-  REGISTRY: quay.io
-  PUSH_TO_REGISTRY: ${{ (github.repository_owner == 'jupyter' || github.repository_owner == 'mathbunnyru') && (github.ref == 'refs/heads/main' || github.event_name == 'schedule') }}
+  REGISTRY: ghcr.io
+  PUSH_TO_REGISTRY: ${{ github.repository_owner == 'vantagecompute' && (github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
 
 on:
   workflow_call:
@@ -19,11 +19,6 @@ on:
         description: Timeout in minutes
         default: 5
         type: number
-    secrets:
-      REGISTRY_USERNAME:
-        required: true
-      REGISTRY_TOKEN:
-        required: true
 
 permissions: {}
 
@@ -36,6 +31,7 @@ jobs:
     runs-on: ${{ vars.USE_SELF_HOSTED_RUNNERS == 'true' && fromJSON(vars.SELF_HOSTED_RUNS_ON || '{"group":"vantage-eng","labels":["X64"]}') || 'ubuntu-26.04' }}
     permissions:
       contents: read
+      packages: write
     timeout-minutes: ${{ inputs.timeout-minutes }}
 
     steps:
@@ -60,12 +56,9 @@ jobs:
       - name: Login to Registry 🔐
         if: env.PUSH_TO_REGISTRY == 'true'
         run: |
-          docker login ${{ env.REGISTRY }} \
-            --username ${{ secrets.REGISTRY_USERNAME }} \
-            --password ${{ secrets.REGISTRY_TOKEN }} || \
-          docker login ${{ env.REGISTRY }} \
-            --username ${{ secrets.REGISTRY_USERNAME }} \
-            --password ${{ secrets.REGISTRY_TOKEN }}
+          echo "${{ github.token }}" | docker login ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} \
+            --password-stdin
         shell: bash
         id: login
 

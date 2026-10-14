@@ -44,7 +44,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--registry",
         required=True,
-        choices=["docker.io", "quay.io"],
+        choices=["docker.io", "ghcr.io", "quay.io"],
         help="Image registry",
     )
     arg_parser.add_argument(

@@ -125,7 +125,6 @@ You can find the original Jupyter Notebook extension [here](https://github.com/d
 
 [JAX](https://docs.jax.dev/en/latest/) GPU support via the bundled NVIDIA CUDA wheels.
 Run with `--gpus all` and a host NVIDIA driver new enough for CUDA 13.
-For CUDA 12 instead, swap `jax[cuda13]` for `jax[cuda12]`.
 
 ```{literalinclude} recipe_code/jax_cuda.dockerfile
 :language: docker

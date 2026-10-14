@@ -59,10 +59,12 @@ def julia_tagger(container: Container) -> str:
 
 
 def tensorflow_tagger(container: Container) -> str:
-    try:
-        return "tensorflow-" + _get_pip_package_version(container, "tensorflow")
-    except AssertionError:
-        return "tensorflow-" + _get_pip_package_version(container, "tensorflow-cpu")
+    for package in ("tensorflow", "tensorflow-cpu", "tf-nightly", "tf-nightly-cpu"):
+        try:
+            return "tensorflow-" + _get_pip_package_version(container, package)
+        except AssertionError:
+            pass
+    raise AssertionError("No TensorFlow package found")
 
 
 def pytorch_tagger(container: Container) -> str:

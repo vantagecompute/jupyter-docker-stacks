@@ -77,10 +77,11 @@ USER ${NB_UID}
 # on which the Pandas API for Spark is built.
 # To find the right version, check the pandas version being installed here:
 # https://github.com/apache/spark/blob/<SPARK_VERSION>/dev/infra/Dockerfile
+ARG PANDAS_VERSION_SPEC="pandas>=2.2.3,<3"
 RUN mamba install --yes \
     'grpcio-status' \
     'grpcio' \
-    'pandas=2.2.3' \
+    "${PANDAS_VERSION_SPEC}" \
     'pyarrow' && \
     mamba clean --all -f -y && \
     fix-permissions "${CONDA_DIR}" && \
