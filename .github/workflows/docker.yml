@@ -5,10 +5,12 @@ name: Docker Stacks
 # This allows to run CI faster if a full build is not required
 # This only works for a `pull_request` event and does not affect `push` to the `main` branch
 
+# vantagecompute: images are built, tested, signed and published by
+# vantagecompute/jupyter-stacks (which pins this repository as a submodule),
+# so this workflow only builds and tests. Its push and wiki jobs run only when
+# the repository variable PUBLISH_FROM_FORK is "true", and the weekly
+# scheduled rebuild is off.
 on:
-  schedule:
-    # Weekly, at 03:00 on Monday UTC
-    - cron: "0 3 * * 1"
   pull_request:
     paths:
       - ".github/workflows/docker.yml"
@@ -448,7 +450,7 @@ jobs:
         x86_64-pyspark,
         x86_64-all-spark,
       ]
-    if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
+    if: ${{ vars.PUBLISH_FROM_FORK == 'true' && !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
 
   tag-push-merge-fast:
     uses: ./.github/workflows/docker-tag-push-merge.yml
@@ -463,18 +465,18 @@ jobs:
         image: [docker-stacks-foundation, base-notebook]
         variant: [default]
     needs: [aarch64-foundation, aarch64-base, x86_64-foundation, x86_64-base]
-    if: contains(github.event.pull_request.title, '[FAST_BUILD]')
+    if: ${{ vars.PUBLISH_FROM_FORK == 'true' && contains(github.event.pull_request.title, '[FAST_BUILD]') }}
 
   wiki-update:
     uses: ./.github/workflows/docker-wiki-update.yml
     needs: tag-push-merge
-    if: ${{ !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
+    if: ${{ vars.PUBLISH_FROM_FORK == 'true' && !contains(github.event.pull_request.title, '[FAST_BUILD]') }}
     permissions:
       contents: write
 
   wiki-update-fast:
     uses: ./.github/workflows/docker-wiki-update.yml
     needs: tag-push-merge-fast
-    if: contains(github.event.pull_request.title, '[FAST_BUILD]')
+    if: ${{ vars.PUBLISH_FROM_FORK == 'true' && contains(github.event.pull_request.title, '[FAST_BUILD]') }}
     permissions:
       contents: write
