@@ -57,3 +57,27 @@ if "GEN_CERT" in os.environ:
 # Change default umask for all subprocesses of the Server if set in the environment
 if "NB_UMASK" in os.environ:
     os.umask(int(os.environ["NB_UMASK"], 8))
+
+# Kubeflow Notebooks / Workspaces: the controller sets NB_PREFIX to the URL path
+# the workspace is proxied under and expects the image to meet the contract in
+# https://www.kubeflow.org/docs/components/notebooks/container-images/ :
+# serve under that path, send `Access-Control-Allow-Origin: *` (the dashboard
+# embeds the workspace in an iframe) and answer `<prefix>/api/status` without a
+# token (the Workspaces controller polls it for `last_activity` to cull idle
+# workspaces). Authentication is done in front of the pod by the Kubeflow
+# gateway, so Jupyter's own token is turned off. Nothing here applies when
+# NB_PREFIX is unset, so a plain `docker run` keeps token auth.
+if nb_prefix := os.environ.get("NB_PREFIX"):
+    # Jupyter joins base_url and routes ("lab", "api") directly, so it must end
+    # in exactly one "/"; Kubeflow sends the prefix without one.
+    c.ServerApp.base_url = nb_prefix.rstrip("/") + "/"
+    c.IdentityProvider.token = ""
+    c.ServerApp.allow_origin = "*"
+    c.ServerApp.allow_remote_access = True
+    c.ServerApp.authenticate_prometheus = False
+    # Open in the user's home, which is the workspace volume. The
+    # before-notebook.d/20kubeflow-home.sh hook moves HOME under /tmp when the
+    # container runs as a uid that cannot write it; keep the default then.
+    home = os.environ.get("HOME", "")
+    if home and not home.startswith("/tmp/"):
+        c.ServerApp.root_dir = home
