@@ -83,10 +83,12 @@ RUN set -eux; \
     done; \
     test "${replaced}" -gt 0; \
     ! ls netty-*-4.2.13.Final*.jar 2>/dev/null; \
-    # The Scala Spark Connect REPL client (spark-connect-repl) is a fat jar
-    # with the same Netty shaded in, which cannot be patched in place. PySpark,
-    # Spark Connect included, never loads it, so drop it.
-    rm -rf "${SPARK_HOME}/jars/connect-repl"
+    # Two fat jars carry the same Netty shaded in and cannot be patched in
+    # place, and a notebook never loads either: the Scala Spark Connect REPL
+    # client (jars/connect-repl; PySpark, Spark Connect included, does not use
+    # it) and the YARN external shuffle service (yarn/), a plugin that runs in
+    # Hadoop YARN NodeManagers. Drop both.
+    rm -rf "${SPARK_HOME}/jars/connect-repl" "${SPARK_HOME}/yarn"
 
 # Configure IPython system-wide
 COPY ipython_kernel_config.py "/etc/ipython/"
