@@ -38,6 +38,15 @@ Pkg.add([
 Pkg.precompile();
 '
 
+# The installed packages' docs, tests and generators ship Manifest.toml
+# lockfiles of their own development environments, pinning old JLLs (MbedTLS,
+# LibCURL, ImageMagick, ...). Julia never loads them: packages resolve through
+# the environment in ${JULIA_PKGDIR}/environments. Vulnerability scanners read
+# every lockfile as installed packages, though, so remove them, keeping the
+# real environments. (setup_julia.py does the same for Julia's own tree.)
+find "${JULIA_PKGDIR}/packages" \
+    -type f \( -name 'Manifest.toml' -o -name 'Manifest-v*.toml' \) -print -delete
+
 # Move the kernelspec out of ${HOME} to the system share location.
 # Avoids problems with runtime UID change not taking effect properly
 # on the .local folder in the jovyan home dir.
