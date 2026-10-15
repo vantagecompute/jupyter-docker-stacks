@@ -18,6 +18,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 USER root
 
+# The ubuntu:26.04 image ships Canonical's Pebble service manager as a bare
+# /usr/bin/pebble (owned by no package, so apt cannot update it), built with a
+# Go toolchain that has critical CVEs. These images start with tini and
+# start.sh and never run Pebble, so remove it.
+RUN rm -f /usr/bin/pebble
+
 # Install all OS dependencies for the Server that starts
 # but lacks all features (e.g., download as all possible file formats)
 ENV DEBIAN_FRONTEND=noninteractive
