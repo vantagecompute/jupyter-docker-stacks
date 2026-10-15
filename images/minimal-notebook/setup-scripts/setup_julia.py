@@ -60,6 +60,20 @@ def download_julia(julia_url: str) -> None:
     tmp_file.unlink()
 
 
+def remove_dev_manifests(julia_version: str) -> None:
+    """
+    Removes the Manifest.toml lockfiles of Julia's own docs, tests and benchmarks.
+    They pin old JLLs (MbedTLS, LibCURL, ...) for those development environments,
+    which Julia never loads, but vulnerability scanners read every lockfile as
+    installed packages.
+    """
+    share = Path(f"/opt/julia-{julia_version}/share/julia")
+    for pattern in ("Manifest.toml", "Manifest-v*.toml"):
+        for manifest in share.rglob(pattern):
+            LOGGER.info(f"Removing {manifest}")
+            manifest.unlink()
+
+
 def configure_julia(julia_version: str) -> None:
     """
     Creates /usr/local/bin/julia symlink
@@ -90,4 +104,5 @@ if __name__ == "__main__":
 
     julia_url, julia_version = get_latest_julia_url()
     download_julia(julia_url=julia_url)
+    remove_dev_manifests(julia_version=julia_version)
     configure_julia(julia_version=julia_version)
