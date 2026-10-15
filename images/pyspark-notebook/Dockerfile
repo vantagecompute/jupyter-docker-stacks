@@ -58,6 +58,36 @@ RUN set -eux; \
     rm -f "${derby_jar}"; \
     mv "/tmp/derby-${derby_version}.jar" "${derby_dir}/"
 
+# Spark 4.2.0 bundles Netty 4.2.13.Final, affected by CVE-2026-75595
+# (GHSA-c4c3-7fpv-j4q5, fixed in 4.2.17.Final). Replace every bundled Netty jar
+# of that line with ${netty_version}, keeping each jar's classifier (native
+# transports), checked against Maven Central's SHA-1. Drop this once a Spark
+# release bundles a fixed Netty.
+ARG netty_version="4.2.17.Final"
+RUN set -eux; \
+    cd "${SPARK_HOME}/jars"; \
+    replaced=0; \
+    for jar in netty-*-4.2.*.Final*.jar; do \
+        [ -e "${jar}" ] || continue; \
+        base="${jar%.jar}"; \
+        artifact="${base%%-4.2.*}"; \
+        classifier="${base#"${artifact}"-4.2.*.Final}"; \
+        new="${artifact}-${netty_version}${classifier}.jar"; \
+        [ "${jar}" = "${new}" ] && continue; \
+        url="https://repo1.maven.org/maven2/io/netty/${artifact}/${netty_version}/${new}"; \
+        curl -fsSL -o "/tmp/${new}" "${url}"; \
+        echo "$(curl -fsSL "${url}.sha1" | cut -c1-40)  /tmp/${new}" | sha1sum -c -; \
+        rm -f "${jar}"; \
+        mv "/tmp/${new}" .; \
+        replaced=$((replaced + 1)); \
+    done; \
+    test "${replaced}" -gt 0; \
+    ! ls netty-*-4.2.13.Final*.jar 2>/dev/null; \
+    # The Scala Spark Connect REPL client (spark-connect-repl) is a fat jar
+    # with the same Netty shaded in, which cannot be patched in place. PySpark,
+    # Spark Connect included, never loads it, so drop it.
+    rm -rf "${SPARK_HOME}/jars/connect-repl"
+
 # Configure IPython system-wide
 COPY ipython_kernel_config.py "/etc/ipython/"
 RUN fix-permissions "/etc/ipython/"
