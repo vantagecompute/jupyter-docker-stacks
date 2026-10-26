@@ -28,4 +28,6 @@ RUN [[ $(uname -m) = x86_64 ]] && TF_PACKAGE="${TENSORFLOW_CPU_PACKAGE}" || TF_P
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
+RUN rm -rf "/home/${NB_USER}/.cache/rosetta"
+
 COPY --chown="${NB_UID}:${NB_GID}" 20tensorboard-proxy-env.sh /usr/local/bin/before-notebook.d/

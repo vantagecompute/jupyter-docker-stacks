@@ -20,6 +20,8 @@ RUN pip install -v --no-cache-dir --extra-index-url=https://pypi.nvidia.com --in
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
+RUN rm -rf "/home/${NB_USER}/.cache/rosetta"
+
 # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html#dockerfiles
 ENV NVIDIA_VISIBLE_DEVICES="all" \
     NVIDIA_DRIVER_CAPABILITIES="compute,utility"
@@ -27,4 +29,4 @@ ENV NVIDIA_VISIBLE_DEVICES="all" \
 # Puts the nvidia-smi binary (system management interface) on path
 # with associated library files to execute it
 ENV PATH="${PATH}:/usr/local/nvidia/bin" \
-    LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/nvidia/lib64"
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+${LD_LIBRARY_PATH}:}/usr/local/nvidia/lib64"

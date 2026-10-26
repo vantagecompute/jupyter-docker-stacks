@@ -3,10 +3,11 @@
 import logging
 import time
 
-import pytest  # type: ignore
+import pytest
 import requests
 
 from tests.utils.tracked_container import TrackedContainer
+from tests.utils.wait import wait_until
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,15 +45,18 @@ def test_start_notebook(
     container.run_detached(environment=env, ports={"8888/tcp": free_host_port})
     # Wait for the server to be reachable (proves start-notebook.py finished launching)
     if expected_start:
-        resp = http_client.get(f"http://localhost:{free_host_port}")
+        resp = http_client.get(f"http://localhost:{free_host_port}", timeout=10)
         assert resp.status_code == 200, "Server is not listening"
     else:
         # For non-listening cases (e.g. jupyterhub-singleuser), give the script time to print
         time.sleep(5)
+    # Buffered container stdout can lag the server being reachable, so poll the logs.
+    expected_log = f"Executing: {expected_command}"
+    wait_until(lambda: expected_log in container.get_logs())
     logs = container.get_logs()
     LOGGER.debug(logs)
     assert (
-        f"Executing: {expected_command}" in logs
+        expected_log in logs
     ), f"Not the expected command ({expected_command}) was launched"
     assert "ERROR" not in logs, "ERROR(s) found in logs"
     for exp_warning in expected_warnings:
@@ -73,6 +77,4 @@ def test_tini_entrypoint(
     container.run_detached()
     # Select the PID 1 and get the corresponding command
     output = container.exec_cmd(f"ps -p {pid} -o comm=")
-    assert "ERROR" not in output
-    assert "WARNING" not in output
     assert output == command, f"{command} shall be launched as pid {pid}, got {output}"

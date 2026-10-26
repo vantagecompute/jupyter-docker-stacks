@@ -6,7 +6,7 @@ from collections.abc import Generator
 from contextlib import closing
 
 import docker
-import pytest  # type: ignore
+import pytest
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -20,7 +20,14 @@ LOGGER = logging.getLogger(__name__)
 def http_client() -> requests.Session:
     """Requests session with retries and backoff."""
     s = requests.Session()
-    retries = Retry(total=5, backoff_factor=1)
+    retries = Retry(
+        total=5,
+        backoff_factor=1,
+        # Retry on gateway errors as well: jupyter-server-proxy answers
+        # 502/503 while the proxied server is still spawning
+        status_forcelist=[502, 503, 504],
+        allowed_methods=["GET", "HEAD"],
+    )
     s.mount("http://", HTTPAdapter(max_retries=retries))
     s.mount("https://", HTTPAdapter(max_retries=retries))
     return s
@@ -85,8 +92,16 @@ def container(
 
 @pytest.fixture(scope="function")
 def free_host_port() -> Generator[int]:
-    """Finds a free port on the host machine"""
+    """Reserves a free port on the host machine for the duration of the test.
+
+    We keep the socket bound (but not listening) while the test runs:
+    the kernel then never hands the same port out to other test workers
+    asking for an ephemeral port, while docker-proxy, which sets
+    SO_REUSEADDR just like we do here, can still bind the same port to
+    publish the container's port.
+    """
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
+        # Must be set before bind() for the reservation mechanism to work
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("", 0))
         yield s.getsockname()[1]

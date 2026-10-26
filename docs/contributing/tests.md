@@ -25,7 +25,7 @@ defined in the [conftest.py](https://github.com/jupyter/docker-stacks/blob/main/
 You can add a unit test if you want to run a Python script in one of our images.
 You should create a `tests/by_image/<somestack>/units/` directory, if it doesn't already exist, and put your file there.
 Files in this folder will be executed in the container when tests are run.
-You can see an [TensorFlow package example here](https://github.com/jupyter/docker-stacks/blob/HEAD/tests/by_image/tensorflow-notebook/units/unit_tensorflow.py).
+You can see a [TensorFlow package example here](https://github.com/jupyter/docker-stacks/blob/HEAD/tests/by_image/tensorflow-notebook/units/unit_tensorflow.py).
 
 ## Contributing New Tests
 
@@ -40,7 +40,7 @@ Please follow the process below to add new tests:
    make test/<somestack>
    ```
 
-3. [Submit a pull request](https://github.com/PointCloudLibrary/pcl/wiki/A-step-by-step-guide-on-preparing-and-submitting-a-pull-request)
+3. [Submit a pull request](https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/creating-a-pull-request)
    (PR) with your changes.
 4. Watch for GitHub to report a build success or failure for your PR on GitHub.
 5. Discuss changes with the maintainers and address any issues running the tests on GitHub.

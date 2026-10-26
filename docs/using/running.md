@@ -15,14 +15,14 @@ The following are some common patterns.
 
 ### Example 1
 
-This command pulls the `jupyter/scipy-notebook` image tagged `2025-12-31` from Quay.io if it is not already present on the local host.
+This command pulls the `jupyter/scipy-notebook` image tagged `2026-07-28` from Quay.io if it is not already present on the local host.
 It then starts a container running a Jupyter Server with the JupyterLab frontend and exposes the server on host port 8888.
 The server logs appear in the terminal and include a URL to the server.
 
 ```bash
-docker run -it -p 8888:8888 quay.io/jupyter/scipy-notebook:2025-12-31
+docker run -it -p 8888:8888 quay.io/jupyter/scipy-notebook:2026-07-28
 
-# Entered start.sh with args: jupyter lab
+# Entered start.sh with args: start-notebook.py
 
 # ...
 
@@ -39,11 +39,11 @@ Pressing `Ctrl-C` twice shuts down the Server but leaves the container intact on
 # list containers
 docker ps --all
 # CONTAINER ID   IMAGE                                       COMMAND                  CREATED              STATUS                     PORTS     NAMES
-# eca4aa01751c   quay.io/jupyter/scipy-notebook:2025-12-31   "tini -g -- start-no…"   About a minute ago   Exited (0) 5 seconds ago             silly_panini
+# eca4aa01751c   quay.io/jupyter/scipy-notebook:2026-07-28   "tini -g -- start.sh…"   About a minute ago   Exited (0) 5 seconds ago             silly_panini
 
 # start the stopped container
 docker start --attach -i eca4aa01751c
-# Entered start.sh with args: jupyter lab
+# Entered start.sh with args: start-notebook.py
 # ...
 
 # remove the stopped container
@@ -53,12 +53,12 @@ docker rm eca4aa01751c
 
 ### Example 2
 
-This command pulls the `jupyter/r-notebook` image tagged `2025-12-31` from Quay.io if it is not already present on the local host.
+This command pulls the `jupyter/r-notebook` image tagged `2026-07-28` from Quay.io if it is not already present on the local host.
 It then starts a container running a Jupyter Server and exposes the server on host port 10000.
 The server logs appear in the terminal and include a URL to the Server but with the internal container port (8888) instead of the correct host port (10000).
 
 ```bash
-docker run -it --rm -p 10000:8888 -v "${PWD}":/home/jovyan/work quay.io/jupyter/r-notebook:2025-12-31
+docker run -it --rm -p 10000:8888 -v "${PWD}":/home/jovyan/work quay.io/jupyter/r-notebook:2026-07-28
 ```
 
 Pressing `Ctrl-C` twice shuts down the Server and immediately destroys the Docker container.
@@ -131,40 +131,30 @@ uid=1000
 gid=100
 ```
 
-Set the shell variables _subuidSize_ and _subgidSize_ to the number of subordinate UIDs and GIDs, respectively.
-
-```bash
-subuidSize=$(( $(podman info --format "{{ range .Host.IDMappings.UIDMap }}+{{.Size }}{{end }}" ) - 1 ))
-subgidSize=$(( $(podman info --format "{{ range .Host.IDMappings.GIDMap }}+{{.Size }}{{end }}" ) - 1 ))
-```
-
-This command pulls the `quay.io/jupyter/r-notebook` image tagged `2025-12-31` from Quay.io if it is not already present on the local host.
+This command pulls the `quay.io/jupyter/r-notebook` image tagged `2026-07-28` from Quay.io if it is not already present on the local host.
 It then starts a container running a Jupyter Server with the JupyterLab frontend and exposes the server on host port 10000.
 The server logs appear in the terminal and include a URL to the server but with the internal container port (8888) instead of the correct host port (10000).
 
 ```bash
 podman run -it --rm -p 10000:8888 \
     -v "${PWD}":/home/jovyan/work --user $uid:$gid \
-    --uidmap $uid:0:1 --uidmap 0:1:$uid --uidmap $(($uid+1)):$(($uid+1)):$(($subuidSize-$uid)) \
-    --gidmap $gid:0:1 --gidmap 0:1:$gid --gidmap $(($gid+1)):$(($gid+1)):$(($subgidSize-$gid)) \
-    quay.io/jupyter/r-notebook:2025-12-31
+    --userns keep-id:uid=${uid},gid=${gid} \
+    quay.io/jupyter/r-notebook:2026-07-28
 ```
 
-```{warning}
-The `podman run` options `--uidmap` and `--gidmap` can be used to map the container user _jovyan_ to the regular user on the host when running rootless Podman.
-The same Podman command should not be run with sudo (i.e. running rootful Podman)
-because then the mapping would map the container user _jovyan_ to the root user on the host.
-It's a good security practice to run programs with as few privileges as possible.
-```
+If the commands fail with the error message:
+`Error: unrecognized namespace mode keep-id:uid=1000,gid=100 passed`
+see [troubleshooting tip](https://github.com/containers/podman/blob/main/troubleshooting.md#39-podman-run-fails-with-error-unrecognized-namespace-mode-keep-iduid1000gid1000-passed).
 
 ```{note}
 The `podman run` command in the example above maps all subuids and subgids of the user into the container.
 That works fine but is actually more than needed.
 The `podman run` option `--userns=auto` will, for instance, not be possible to use as long as there are no unused subuids and subgids available.
-The example could be improved by investigating more in detail which UIDs and GIDs need to be available in the container and then only map them.
+The example could be improved by investigating more in detail which UIDs and GIDs need to be available in the container and then only map them,
+for example by setting the size option (`--userns keep-id:uid=${uid},gid=${gid},size=$size`).
 ```
 
-Pressing `Ctrl-C` twice shuts down the Server and immediately destroys the Docker container.
+Pressing `Ctrl-C` twice shuts down the Server and immediately destroys the container.
 New files and changes in `~/work` in the container will be preserved.
 Any other changes made in the container will be lost.
 

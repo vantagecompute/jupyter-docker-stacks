@@ -1,12 +1,12 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 import logging
-import time
 
-import pytest  # type: ignore
+import pytest
 import requests
 
 from tests.utils.tracked_container import TrackedContainer
+from tests.utils.wait import wait_until
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,13 +19,12 @@ def test_cli_args(
         command=["start-notebook.py", "--IdentityProvider.token=''"],
         ports={"8888/tcp": free_host_port},
     )
-    resp = http_client.get(f"http://localhost:{free_host_port}")
+    resp = http_client.get(f"http://localhost:{free_host_port}", timeout=10)
     resp.raise_for_status()
     logs = container.get_logs()
     LOGGER.debug(logs)
-    assert "ERROR" not in logs
-    warnings = TrackedContainer.get_warnings(logs)
-    assert not warnings
+    assert not TrackedContainer.get_errors(logs)
+    assert not TrackedContainer.get_warnings(logs)
     assert "login_submit" not in resp.text
 
 
@@ -38,9 +37,12 @@ def test_nb_user_change(container: TrackedContainer) -> None:
         command=["sleep", "infinity"],
     )
 
-    # Give the chown time to complete.
-    # Use sleep, not wait, because the container sleeps forever.
-    time.sleep(5)
+    # Wait until the start script has finished preparing the user:
+    # the rename, home copy, and chown all happen before this line is logged.
+    # We can't wait for the container itself, because it sleeps forever.
+    assert wait_until(
+        lambda: f"Running as {nb_user}:" in container.get_logs(), timeout=30
+    ), "start.sh didn't finish preparing the user"
     LOGGER.info(
         f"Checking if a home folder of {nb_user} contains the hidden '.jupyter' folder with appropriate permissions ..."
     )
@@ -50,6 +52,36 @@ def test_nb_user_change(container: TrackedContainer) -> None:
     assert (
         output == expected_output
     ), f"Hidden folder .jupyter was not copied properly to {nb_user} home folder. stat: {output}, expected {expected_output}"
+
+
+def test_nb_umask(container: TrackedContainer) -> None:
+    """Container should apply `NB_UMASK` to the Jupyter Server process."""
+    container.run_detached(environment=["NB_UMASK=002"])
+    assert wait_until(
+        lambda: container.get_health() == "healthy", timeout=60
+    ), "Server did not become healthy"
+    # Find the server PID without relying on procps being installed.
+    # The [b] trick prevents this probe's own /proc entry from matching.
+    umask_line = container.exec_cmd(
+        "bash -c '"
+        'pid=$(grep -al "jupyter-la[b]" /proc/[0-9]*/cmdline | head -n 1 | cut -d/ -f3)'
+        ' && grep Umask "/proc/${pid}/status"'
+        "'"
+    )
+    assert umask_line.split() == ["Umask:", "0002"], f"Wrong umask: {umask_line}"
+
+
+def test_notebook_args(container: TrackedContainer) -> None:
+    """Container should pass `NOTEBOOK_ARGS` on to the server:
+    the custom base url should appear in the URL the started server prints."""
+    base_url = "/tests-base-url"
+    container.run_detached(
+        environment=[f"NOTEBOOK_ARGS=--ServerApp.base_url={base_url}"],
+    )
+    expected_url = f"http://127.0.0.1:8888{base_url}/lab"
+    assert wait_until(
+        lambda: expected_url in container.get_logs(), timeout=60
+    ), f"{expected_url} not found in server logs"
 
 
 @pytest.mark.filterwarnings("ignore:Unverified HTTPS request")
@@ -63,18 +95,25 @@ def test_unsigned_ssl(
         environment=["GEN_CERT=yes"],
         ports={"8888/tcp": free_host_port},
     )
+    url = f"https://localhost:{free_host_port}"
+
+    def server_answers() -> bool:
+        try:
+            return http_client.get(url, verify=False, timeout=10).status_code == 200
+        except requests.RequestException:
+            return False
+
     # NOTE: The requests.Session backing the http_client fixture
     # does not retry properly while the server is booting up.
-    # An SSL handshake error seems to abort the retry logic.
-    # Forcing a long sleep for the moment until I have time to dig more.
-    time.sleep(1)
-    resp = http_client.get(f"https://localhost:{free_host_port}", verify=False)
+    # An SSL handshake error seems to abort the retry logic,
+    # so tolerate SSL/connection errors here until the server answers.
+    assert wait_until(server_answers, timeout=60), "Server did not start"
+    resp = http_client.get(url, verify=False, timeout=10)
     resp.raise_for_status()
     assert "login_submit" in resp.text
     logs = container.get_logs()
-    assert "ERROR" not in logs
-    warnings = TrackedContainer.get_warnings(logs)
-    assert not warnings
+    assert not TrackedContainer.get_errors(logs)
+    assert not TrackedContainer.get_warnings(logs)
 
 
 @pytest.mark.parametrize(
@@ -104,10 +143,9 @@ def test_custom_internal_port(
         environment=env,
         ports={internal_port: free_host_port},
     )
-    resp = http_client.get(f"http://localhost:{free_host_port}")
+    resp = http_client.get(f"http://localhost:{free_host_port}", timeout=10)
     resp.raise_for_status()
     logs = container.get_logs()
     LOGGER.debug(logs)
-    assert "ERROR" not in logs
-    warnings = TrackedContainer.get_warnings(logs)
-    assert not warnings
+    assert not TrackedContainer.get_errors(logs)
+    assert not TrackedContainer.get_warnings(logs)

@@ -10,7 +10,7 @@ If you would like to build a custom set of images, [take a look at the docs](cus
 ## Using `sudo` within a container
 
 Password authentication is disabled for the `NB_USER` (e.g., `jovyan`).
-We made this choice to avoid distributing images with a weak default password that users ~might~ will forget to change before running a container on a publicly accessible host.
+We made this choice to avoid distributing images with a weak default password that users ~~might~~ will forget to change before running a container on a publicly accessible host.
 
 You can grant the within-container `NB_USER` passwordless `sudo` access by adding `--user root` and `-e GRANT_SUDO=yes` to your Docker command line or appropriate container orchestrator config.
 
@@ -59,7 +59,7 @@ docker run -it --rm \
 
 The default version of `Python` that ships with the image may not be the version you want.
 The instructions below permit adding a conda environment with a different `Python` version and making it accessible to Jupyter.
-You may also use older images like `jupyter/base-notebook:python-3.10`.
+You may also use older images like `quay.io/jupyter/base-notebook:python-3.11`.
 We also maintain a [full build history](https://github.com/jupyter/docker-stacks/wiki).
 
 ```{literalinclude} recipe_code/custom_environment.dockerfile
@@ -174,7 +174,7 @@ Enabling manpages in the base Ubuntu layer prevents this image bloat.
 To achieve this, use the previous `Dockerfile`'s commands with the original `ubuntu` image as your base image:
 
 ```dockerfile
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 ```
 
 Be sure to check the current base image in `jupyter/docker-stacks-foundation` before building.
@@ -190,7 +190,7 @@ You can find [an example of using DockerSpawner](https://github.com/jupyterhub/j
 ### Containers with a specific version of JupyterHub
 
 The version of `jupyterhub` in your image should match the
-version in JupyterHub itself.
+version of JupyterHub itself.
 To use a specific version of JupyterHub, do the following:
 
 ```{literalinclude} recipe_code/jupyterhub_version.dockerfile
@@ -296,7 +296,7 @@ Ref: <https://github.com/jupyter/docker-stacks/issues/154>
 This recipe is not tested and might be broken.
 ```
 
-If you'd like to use packages from [spark-packages.org](https://spark-packages.org/), see
+If you'd like to use packages from [spark-packages](https://repos.spark-packages.org/), see
 [https://gist.github.com/parente/c95fdaba5a9a066efaab](https://gist.github.com/parente/c95fdaba5a9a066efaab)
 for an example of how to specify the package identifier in the environment before creating a
 SparkContext.
@@ -385,7 +385,7 @@ Credit: [britishbadger](https://github.com/britishbadger) from [docker-stacks/is
 ## Run Server inside an already secured environment (i.e., with no token)
 
 The default security is very good.
-There are use cases, encouraged by containers, where the jupyter container and the system it runs within lie inside the security boundary.
+There are use cases, encouraged by containers, where the Jupyter container and the system it runs within lie inside the security boundary.
 It is convenient to launch the server without a password or token in these use cases.
 In this case, you should use the `start-notebook.py` script to launch the server with no token:
 
@@ -436,17 +436,19 @@ RUN mamba install --yes 'delta-spark' && \
 
 USER root
 
-RUN echo 'spark.sql.extensions io.delta.sql.DeltaSparkSessionExtension' >> "${SPARK_HOME}/conf/spark-defaults.conf" && \
-    echo 'spark.sql.catalog.spark_catalog org.apache.spark.sql.delta.catalog.DeltaCatalog' >> "${SPARK_HOME}/conf/spark-defaults.conf"
+RUN cat <<EOF >> "${SPARK_HOME}/conf/spark-defaults.conf"
+spark.sql.extensions io.delta.sql.DeltaSparkSessionExtension
+spark.sql.catalog.spark_catalog org.apache.spark.sql.delta.catalog.DeltaCatalog
+EOF
 
 USER ${NB_UID}
 
 # Trigger download of delta lake files
-RUN echo "from pyspark.sql import SparkSession" > /tmp/init-delta.py && \
-    echo "from delta import *" >> /tmp/init-delta.py && \
-    echo "spark = configure_spark_with_delta_pip(SparkSession.builder).getOrCreate()" >> /tmp/init-delta.py && \
-    python /tmp/init-delta.py && \
-    rm /tmp/init-delta.py
+RUN python <<EOF
+from pyspark.sql import SparkSession
+from delta import *
+spark = configure_spark_with_delta_pip(SparkSession.builder).getOrCreate()
+EOF
 ```
 
 ## Add Custom Fonts in Scipy notebook
@@ -512,7 +514,7 @@ You can now use `pyodbc` and `sqlalchemy` to interact with the database.
 
 Pre-built images are hosted in the [Realiserad/jupyter-docker-mssql](https://github.com/Realiserad/jupyter-docker-mssql) repository.
 
-## Add Oracle SQL Instant client, SQL\*Plus, and other tools (Version 21.x)
+## Add Oracle SQL Instant client, SQL\*Plus, and other tools (Version 23.x)
 
 ```{note}
 This recipe only works for x86_64 architecture.
@@ -520,7 +522,7 @@ This recipe only works for x86_64 architecture.
 
 The following recipe demonstrates how to add functionality to connect to an Oracle Database using [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 in your notebook.
-This recipe installs version `21.11.0.0.0`.
+This recipe installs version `23.6.0.24.10`.
 
 Nonetheless, go to the [Oracle Instant Client Download page](https://www.oracle.com/es/database/technologies/instant-client/linux-x86-64-downloads.html) for the complete list of versions available.
 You may need to perform different steps for older versions;
@@ -535,14 +537,14 @@ they may be explained in the "Installation instructions" section of the Download
 You can also start Jupyter Docker Stacks containers using **Singularity** instead of Docker. For example:
 
 ```bash
-singularity run --bind "${PWD}:/home/${USER}/work" --containall docker://quay.io/jupyter/datascience-notebook:2025-12-31
+singularity run --bind "${PWD}:/home/${USER}/work" --containall docker://quay.io/jupyter/datascience-notebook:2026-07-28
 ```
 
 - `--bind "${PWD}:/home/${USER}/work"` mounts your current working directory into the container at `/home/$USER/work`.
   When running the image with Singularity, the container uses your host username inside the container.
   Therefore, the bind target is `/home/${USER}/work` instead of the usual `/home/jovyan/work`.
 
-- `--containall` starts the container in a fully isolated environment, ignoring most of the host’s filesystem and environment except for explicitly bound paths.
+- `--containall` starts the container in a fully isolated environment, ignoring most of the host's filesystem and environment except for explicitly bound paths.
   By default, Singularity would bind your home directory automatically.
   If you have Python packages installed there, this may cause conflicts with packages inside the container.
   Using `--containall` avoids such interference.

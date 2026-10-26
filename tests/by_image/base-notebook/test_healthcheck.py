@@ -1,39 +1,34 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 import logging
-import time
 
-import pytest  # type: ignore
+import pytest
 
 from tests.utils.tracked_container import TrackedContainer
+from tests.utils.wait import wait_until
 
 LOGGER = logging.getLogger(__name__)
 
 
-def get_healthy_status(
+def verify_health_status(
     container: TrackedContainer,
     *,
+    expected_status: str,
     env: list[str] | None,
     cmd: list[str] | None,
-    user: str | None,
-) -> str:
+    user: str | None = None,
+) -> None:
     container.run_detached(
         environment=env,
         command=cmd,
         user=user,
     )
 
-    # giving some time to let the server start
-    finish_time = time.time() + 10
-    sleep_time = 1
-    while time.time() < finish_time:
-        time.sleep(sleep_time)
-
-        status = container.get_health()
-        if status == "healthy":
-            return status
-
-    return status
+    # Give the container generous time to reach the expected status,
+    # the server can be slow to start under parallel test load
+    assert wait_until(
+        lambda: container.get_health() == expected_status, timeout=60
+    ), f"Expected health status: {expected_status}, current status: {container.get_health()}"
 
 
 @pytest.mark.parametrize(
@@ -85,7 +80,9 @@ def test_healthy(
     cmd: list[str] | None,
     user: str | None,
 ) -> None:
-    assert get_healthy_status(container, env=env, cmd=cmd, user=user) == "healthy"
+    verify_health_status(
+        container, expected_status="healthy", env=env, cmd=cmd, user=user
+    )
 
 
 @pytest.mark.parametrize(
@@ -118,7 +115,9 @@ def test_healthy_with_proxy(
     cmd: list[str] | None,
     user: str | None,
 ) -> None:
-    assert get_healthy_status(container, env=env, cmd=cmd, user=user) == "healthy"
+    verify_health_status(
+        container, expected_status="healthy", env=env, cmd=cmd, user=user
+    )
 
 
 @pytest.mark.parametrize(
@@ -140,6 +139,4 @@ def test_not_healthy(
     env: list[str] | None,
     cmd: list[str] | None,
 ) -> None:
-    assert (
-        get_healthy_status(container, env=env, cmd=cmd, user=None) != "healthy"
-    ), "Container should not be healthy for this testcase"
+    verify_health_status(container, expected_status="unhealthy", env=env, cmd=cmd)

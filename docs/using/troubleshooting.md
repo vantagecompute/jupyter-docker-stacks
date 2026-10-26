@@ -83,7 +83,7 @@ The following sections cover a few of these scenarios and how to fix them.
 
    Docker handles mounting host directories differently from mounting volumes, even though the syntax is essentially the same (i.e. `-v`).
 
-   When you initialize a Docker container using the `-v`flag, the host directories are bind-mounted directly into the container.
+   When you initialize a Docker container using the `-v` flag, the host directories are bind-mounted directly into the container.
    Therefore, the permissions and ownership are copied over and will be **the same** as the ones in your local host
    (including user ids) which may result in permissions errors when trying to access directories or create/modify files inside.
 
@@ -127,7 +127,7 @@ The following sections cover a few of these scenarios and how to fix them.
 If you have also **created a new user**, you might be experiencing any of the following issues:
 
 - the `root` user is the owner of `/home` or a mounted volume
-- when starting the container, you get an error such as `Failed to change ownership of the home directory.`
+- when starting the container, you get an error such as `Failed copy data from /home/jovyan to /home/<username> or to create symlink!`
 - getting permission denied when trying to `conda install` packages
 
 **Some things to try:**
@@ -153,15 +153,16 @@ If you have also **created a new user**, you might be experiencing any of the fo
     # Updated the jovyan user:
     # - username: jovyan       -> callisto
     # - home dir: /home/jovyan -> /home/callisto
-    # Update callisto UID:GID to 1234:1234
+    # Update callisto's UID:GID to 1234:1234
     # Attempting to copy /home/jovyan to /home/callisto...
     # Success!
-    # Ensuring /home/callisto is owned by 1234:1234
+    # Ensuring /home/callisto is owned by 1234:1234 (chown options: -R)
     # Running as callisto: bash
    ```
 
    where:
-   - `-e NB_USER=callisto`: will create a new user `callisto` and automatically add it to the `users` group (does not delete jovyan)
+   - `-e NB_USER=callisto`: will rename the `jovyan` user to `callisto` and attempt to copy the content of the home directory to `/home/callisto`,
+     falling back to creating a symlink to `/home/jovyan` if the copy fails
    - `-e NB_UID=1234` and `-e NB_GID=1234`: will set the `UID` and `GID` of the new user (`callisto`) to `1234`
    - `-e CHOWN_HOME_OPTS="-R"` and `-e CHOWN_HOME=yes`: ensure that the new user is the owner of the `/home` directory and subdirectories
      (setting `CHOWN_HOME_OPTS="-R` will ensure this change is applied recursively)
@@ -223,7 +224,7 @@ If you have also **created a new user**, you might be experiencing any of the fo
 
   This command will launch the container with a specific user UID and add that user to the `users` group
   to modify the files in the default `/home` and `/opt/conda` directories.
-  Further avoiding issues when trying to `conda install` additional packages.
+  This further avoids issues when trying to `conda install` additional packages.
 
 - Use `docker inspect <container_id>` and look for the [`Mounts` section](https://docs.docker.com/engine/storage/volumes/#start-a-container-with-a-volume)
   to verify that the volume was created and mounted accordingly:
@@ -247,29 +248,33 @@ If you have also **created a new user**, you might be experiencing any of the fo
 
 ## Problems installing conda packages from specific channels
 
-By default, the docker-stacks images have the conda channels priority set to `strict`.
-This may cause problems when trying to install packages from a channel with lower priority.
+The docker-stacks images use the default `flexible` conda channels priority.
 
 ```bash
 conda config --show | grep priority
-# channel_priority: strict
+# channel_priority: flexible
 
 # to see its meaning
 conda config --describe channel_priority
 
 # checking the current channels
-conda config --show default_channels
-# default_channels:
-# - https://repo.anaconda.com/pkgs/main
-# - https://repo.anaconda.com/pkgs/r
+conda config --show channels
+# channels:
+#   - conda-forge
 ```
 
 **Installing packages from alternative channels:**
 
-You can install packages from other conda channels (e.g. `bioconda`) by disabling the `channel_priority` setting:
+You can install packages from other conda channels (e.g. `bioconda`) by specifying the channel:
 
 ```bash
-# install by disabling channel priority at the command level
+conda install -c bioconda bioconductor-geoquery
+```
+
+If you have set the channels priority to `strict`, installing packages from a channel with lower priority may cause problems.
+In this case, you can disable the `channel_priority` setting at the command level:
+
+```bash
 conda install --no-channel-priority -c bioconda bioconductor-geoquery
 ```
 
