@@ -50,7 +50,7 @@ It contains:
 - `tini` and a `start.sh` script as the container entry point - useful for running alternative commands in the container as applications are added (e.g. `ipython`, `jupyter kernelgateway`, `jupyter lab`)
 - A `run-hooks.sh` script, which can source/run files in a given directory
 - Options for a passwordless sudo
-- Common system libraries like `bzip2`, `ca-certificates`, `locales`
+- Common system libraries like `ca-certificates`, `locales`
 - `wget` to download external files
 - No preinstalled scientific computing packages
 
@@ -67,7 +67,7 @@ It contains:
 
 - Everything in `jupyter/docker-stacks-foundation`
 - Minimally functional Server (e.g., no LaTeX support for saving notebooks as PDFs)
-- `notebook`, `jupyterhub-singleuser`, and `jupyterlab` packages
+- `notebook`, `nbclassic`, `jupyterhub-singleuser`, and `jupyterlab` packages
 - A `start-notebook.py` script as the default command
 - A `start-singleuser.py` script useful for launching containers in JupyterHub
 - Options for a self-signed HTTPS certificate
@@ -176,7 +176,7 @@ It contains:
   [scipy](https://scipy.org/),
   [seaborn](https://seaborn.pydata.org/),
   [sqlalchemy](https://www.sqlalchemy.org/),
-  [statsmodel](https://www.statsmodels.org/stable/index.html),
+  [statsmodels](https://www.statsmodels.org/stable/index.html),
   [sympy](https://www.sympy.org/en/index.html),
   [widgetsnbextension](https://ipywidgets.readthedocs.io/en/latest/user_install.html#installing-in-classic-jupyter-notebook),
   [xlrd](https://www.python-excel.org)
@@ -216,8 +216,9 @@ It contains:
 
 `jupyter/datascience-notebook` includes libraries for data analysis from the Python, R, and Julia communities.
 
-- Everything in the `jupyter/scipy-notebook`, `jupyter/r-notebook`, and `jupyter/julia-notebook` images and their ancestor
-  images
+- Everything in `jupyter/scipy-notebook` and its ancestor images
+- The R and Julia packages from the `jupyter/r-notebook` and `jupyter/julia-notebook` images
+  (but not the additional system packages installed via `apt` in `jupyter/r-notebook`, such as `unixodbc-dev`)
 - [rpy2](https://rpy2.github.io/doc/latest/html/index.html) package
 
 ### jupyter/pyspark-notebook
@@ -262,8 +263,20 @@ For example, you could use the image `ghcr.io/vantagecompute/pytorch-notebook:cu
 The following diagram depicts the build dependency tree of the core images. (i.e., the `FROM` statements in their Dockerfiles).
 Any given image inherits the complete content of all ancestor images pointing to it.
 
-[![Image inheritance
-diagram](../images/inherit.svg)](http://interactive.blockdiag.com/?compression=deflate&src=eJyFj8FKxDAQhu_7FKEnRYKsnmTRJ9ibe1yQaTp1x2ZnSjJxqeK7mywopFB6Cnzz_X_4Wy9u6AjezffGmA57SF7femGN9IXm2TztMpdAyApKwhmNEjQA6W6TT01qE2s68s3-8GoupKd8J1YT0CNEvG2MfTFd_gWDjQpuiLaXxN21rZQv3UquzQ2WRbEVGYpcgWKciekMvpLmrHjR0ThVVk2K0yhylNB7ufzzI9-51IH5hEDA2iwkx0kluNM8tn24vz6Pf_m4UJAnQ6bIDlenhFXjI3mClbHjFEcIQ2XNWfHAezs3f34BzoTGIw)
+```{mermaid}
+flowchart TD
+    ubuntu["ubuntu<br>(LTS with point release)"] --> docker-stacks-foundation
+    docker-stacks-foundation --> base-notebook
+    base-notebook --> minimal-notebook
+    minimal-notebook --> scipy-notebook
+    minimal-notebook --> r-notebook
+    minimal-notebook --> julia-notebook
+    scipy-notebook --> tensorflow-notebook["tensorflow-notebook<br>+cuda variant"]
+    scipy-notebook --> pytorch-notebook["pytorch-notebook<br>+cuda12/cuda13 variants"]
+    scipy-notebook --> datascience-notebook
+    scipy-notebook --> pyspark-notebook
+    pyspark-notebook --> all-spark-notebook
+```
 
 ### Builds
 
@@ -276,19 +289,32 @@ Whenever a docker image is pushed to the container registry, it is tagged with:
 - the `latest` tag
 - a 12-character git commit SHA like `1ffe43816ba9`
 - a date formatted like `2023-01-30`
-- OS version like `ubuntu-22.04`
-- a set of software version tags like `python-3.10.8` and `lab-3.5.3`
+- OS version like `ubuntu-24.04`
+- a set of software version tags like `python-3.13.14` and `lab-4.6.1` (exact versions vary with each build)
 
 ```{warning}
 - Tags before `2022-07-05` were sometimes incorrect.
   Please, do not rely on them.
-- Single-platform images have either `aarch64-` or `x86_64-` tag prefixes, for example, `quay.io/jupyter/base-notebook:aarch64-python-3.11.6`
+- Single-platform images have either `aarch64-` or `x86_64-` tag prefixes, for example, `quay.io/jupyter/base-notebook:aarch64-python-3.13.14`
 ```
 
-For stability and reproducibility, you should either reference a date formatted
+For stability and reproducibility, you should either reference a date-formatted
 tag from a date before the current date (in UTC) or a git commit SHA older
 than the latest git commit SHA in the default branch of the
 [jupyter/docker-stacks GitHub repository](https://github.com/jupyter/docker-stacks/).
+
+### Verifying image signatures
+
+Pushed images (both multi-platform and single-platform ones) are signed with [cosign](https://docs.sigstore.dev/cosign/signing/overview/)
+using keyless signing with the GitHub Actions OIDC identity.
+Signatures are stored in the Sigstore bundle format, which requires cosign v3+ to verify.
+To verify that an image was built and pushed by this repository's CI:
+
+```bash
+cosign verify quay.io/jupyter/base-notebook:latest \
+    --certificate-identity-regexp='^https://github\.com/jupyter/docker-stacks/' \
+    --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+```
 
 ## Community Stacks
 

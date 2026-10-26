@@ -14,9 +14,26 @@ To build new images and publish them to the Registry, do the following:
    The only difference is that single-platform images are pushed to Registry and then tags are merged for `x86_64` and `aarch64`.
    ```
 
-4. Avoid merging another PR to the main branch until all pending builds in the main branch are complete.
-   This way, you will know which commit might have broken the build
-   and also have the correct tags for moving tags (like the `Python` version).
+4. Merging another PR while builds in the main branch are still running does not cancel them -
+   runs in the main branch (and scheduled runs) are queued instead
+   (GitHub keeps the latest pending run, replacing any previously queued one).
+   Still, it is tidier to let the pending builds finish before merging another PR:
+   this way, you will know which commit might have broken the build
+   and also have the correct values for the moving tags (like the `Python` version).
+
+### `[FAST_BUILD]` pull requests
+
+If a PR title contains `[FAST_BUILD]`, the [docker.yml](https://github.com/jupyter/docker-stacks/blob/main/.github/workflows/docker.yml) workflow
+only builds and tests the `docker-stacks-foundation` and `base-notebook` images and skips all the other image jobs.
+This only affects `pull_request` events - pushes to the `main` branch and weekly scheduled builds always build all the images.
+
+Keep in mind:
+
+- Skipped jobs still satisfy the required status checks.
+  So, before merging such a PR, **make sure** the `[FAST_BUILD]` title is appropriate for the changes made
+  (i.e. the changes cannot affect the skipped images).
+- Changing a PR title does **not** re-trigger the checks (the workflow does not run on the `edited` activity type).
+  Push a new commit or re-run the workflow jobs to refresh the checks after retitling a PR.
 
 ## Updating Python version
 
@@ -24,7 +41,7 @@ When a new `Python` version is released, we wait for:
 
 - all the dependencies to be available (as wheels or in `conda-forge`).
 - the first `Python` patch release for this version.
-  This allows us to avoid many bugs, which can happen in a major release.
+  This allows us to avoid many bugs that can happen in a major release.
 
 ## Updating the Ubuntu Base Image
 
@@ -51,7 +68,6 @@ When there's a new stack definition, check before merging the PR:
 
 1. PR includes an update to the stack overview diagram
    [in the documentation](../using/selecting.md#image-relationships).
-   The image links to the [blockdiag source](http://interactive.blockdiag.com/) used to create it.
 2. PR updates the [Makefile](https://github.com/jupyter/docker-stacks/blob/main/Makefile).
 3. Necessary Tagger(s)/Manifest(s) are added for the new image
    in the [tagging](https://github.com/jupyter/docker-stacks/tree/main/tagging) folder.

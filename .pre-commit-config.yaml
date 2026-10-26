@@ -24,35 +24,39 @@ repos:
 
   # Automatically sort python imports
   - repo: https://github.com/PyCQA/isort
-    rev: dac090ce4d9ee313d086e2e89ab1acb8c2664fa1 # frozen: 9.0.0a3
+    rev: 9f905615631c545f5aea2516508109350d1d2f7d # frozen: 9.0.2
     hooks:
       - id: isort
         args: [--profile, black]
 
   # Autoformat: Python code
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 4160603246a6b365d4a2af661c6d71b0a0f50478 # frozen: 26.5.1
+    rev: 96ae3e5802f3fe2d551e703e18f0a367d1a81ac2 # frozen: 26.10.0
     hooks:
       - id: black
         args: [--target-version=py312]
 
   # Check python code static typing
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: d2823d321df3af8f878f7ee3414dc94d037145b9 # frozen: v2.1.0
+    rev: 2834ec6639549dd6796205c8f011dedcd587288b # frozen: v2.4.0
     hooks:
       - id: mypy
         args: [--config, ./mypy.ini]
         additional_dependencies:
           [
             "beautifulsoup4",
+            "jupyter_core",
             "numpy",
+            "plumbum",
             "pytest",
             "requests",
             "tenacity",
             "urllib3",
             "types-beautifulsoup4",
+            "types-docker",
             "types-python-dateutil",
             "types-requests",
+            "types-setuptools",
             "types-tabulate",
             "types-urllib3",
           ]
@@ -65,9 +69,32 @@ repos:
         # but it will still be run as part of `pre-commit` workflow and give expected results
         stages: [manual]
 
+  # Check python code static typing
+  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
+    rev: a11caebebdbf797e1e96611123db279b334a7675 # frozen: 1.40.2
+    hooks:
+      - id: basedpyright
+        additional_dependencies:
+          [
+            "beautifulsoup4",
+            "docker",
+            "jupyter_core",
+            "numpy",
+            "plumbum",
+            "pytest",
+            "python-dateutil",
+            "requests",
+            "tabulate",
+            "tenacity",
+            "urllib3",
+          ]
+        # Type checking requires the whole project to be consistent,
+        # so we run this hook only in manual mode, same as `mypy` above
+        stages: [manual]
+
   # Autoformat: YAML, JSON, Markdown, etc.
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: 515f543f5718ebfd6ce22e16708bb32c68ff96e1 # frozen: v3.8.3
+    rev: ef4a397f916211b4a39ccf9d3d9cbb6562157251 # frozen: v3.9.9
     hooks:
       - id: prettier
 
@@ -84,19 +111,21 @@ repos:
 
   # Lint: Dockerfile
   - repo: https://github.com/hadolint/hadolint
-    rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f # frozen: v2.14.0
+    rev: 2eece55955ced00200be9729e9728cb7dacca505 # frozen: v2.15.1
     hooks:
       - id: hadolint-docker
-        entry: hadolint/hadolint:v2.14.0 hadolint
+        # The image tag in `entry` must be bumped together with `rev` (autoupdate does not touch it)
+        entry: hadolint/hadolint:v2.15.1 hadolint
 
   # Lint: Dockerfile
   # We're linting .dockerfile files as well
   - repo: https://github.com/hadolint/hadolint
-    rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f # frozen: v2.14.0
+    rev: 2eece55955ced00200be9729e9728cb7dacca505 # frozen: v2.15.1
     hooks:
       - id: hadolint-docker
         name: Lint *.dockerfile Dockerfiles
-        entry: hadolint/hadolint:v2.12.1-beta hadolint
+        # The image tag in `entry` must be bumped together with `rev` (autoupdate does not touch it)
+        entry: hadolint/hadolint:v2.15.1 hadolint
         types: [file]
         files: \.dockerfile$
 
@@ -108,28 +137,35 @@ repos:
         args: ["-d {extends: relaxed, rules: {line-length: disable}}", "-s"]
 
   # Lint: Bash scripts
-  - repo: https://github.com/openstack/bashate
-    rev: 5798d24d571676fc407e81df574c1ef57b520f23 # frozen: 2.1.1
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: 479be5958357ba5ab65ce47172117348516860e9 # frozen: v3.14.1-1
     hooks:
-      - id: bashate
-        args: ["--ignore=E006"]
+      - id: shfmt
+        args: [--write, --indent=4, --case-indent=true]
 
   # Lint: Shell scripts
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: 745eface02aef23e168a8afb6b5737818efbea95 # frozen: v0.11.0.1
+    rev: a6564f5d57444e123433a5c9af733e3975c77229 # frozen: v0.11.0.1-1
     hooks:
       - id: shellcheck
         args: ["-x"]
 
   # Lint: Python
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: f12be1ebaa5351c1fc76472de98db2c3446c8253 # frozen: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+
+  # Lint: Python
   - repo: https://github.com/PyCQA/flake8
-    rev: d93590f5be797aabb60e3b09f2f52dddb02f349f # frozen: 7.3.0
+    rev: cfbbfdeb2391c14a37e101e92a77f54f329e1726 # frozen: 7.4.1
     hooks:
       - id: flake8
 
   # Lint: Markdown
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: 996abf60411a8d954288ac9856aae7602b80cbda # frozen: v0.22.1
+    rev: 916ad0aaa108c64d294101002066f530ea170b10 # frozen: v0.23.3
     hooks:
       - id: markdownlint-cli2
         args: [--fix]
@@ -168,4 +204,6 @@ ci:
   autoupdate_schedule: monthly
   # Docker hooks do not work in pre-commit.ci
   # See: <https://github.com/pre-commit-ci/issues/issues/11>
-  skip: [hadolint-docker]
+  # basedpyright environment exceeds the 250MiB per-hook limit of pre-commit.ci
+  # This hook only runs in the manual stage (as part of the pre-commit GitHub workflow) anyway
+  skip: [basedpyright, hadolint-docker]

@@ -18,7 +18,11 @@ updates:
       interval: weekly
     commit-message:
       prefix: "[FAST_BUILD] "
-  # This action is only used for some images, so full build is required
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  # This action is only used for some images, so a full build is required
   - package-ecosystem: github-actions
     directory: .github/actions/free-disk-space/
     schedule:
@@ -33,3 +37,25 @@ updates:
     directory: images/docker-stacks-foundation/
     schedule:
       interval: weekly
+    ignore:
+      # Stay on the current Ubuntu LTS, allowing only digest updates for the root image
+      # Moving to a new Ubuntu version is a manual change
+      - dependency-name: ubuntu
+        update-types:
+          [
+            "version-update:semver-major",
+            "version-update:semver-minor",
+            "version-update:semver-patch",
+          ]
+  # Dev dependencies are used to test all the images, so a full build is required
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      pip:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "docutils"
+        versions: ["0.23.0"]

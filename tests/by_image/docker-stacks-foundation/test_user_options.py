@@ -5,9 +5,10 @@ import pathlib
 import re
 import time
 
-import pytest  # type: ignore
+import pytest
 
 from tests.utils.tracked_container import TrackedContainer
+from tests.utils.wait import wait_until
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +36,18 @@ def test_gid_change(container: TrackedContainer) -> None:
     assert "groups=110(jovyan),100(users)" in logs
 
 
+def test_nb_group_change(container: TrackedContainer) -> None:
+    """Container should create the group specified in `NB_GROUP` with the
+    `NB_GID` id and make it the primary group of the default user."""
+    logs = container.run_and_wait(
+        timeout=120,  # group/user modification is slow so give it some time
+        user="root",
+        environment=["NB_GID=2000", "NB_GROUP=custom-group"],
+        command=["id", "-gn"],
+    )
+    assert "custom-group" in logs
+
+
 def test_nb_user_change(container: TrackedContainer) -> None:
     """Container should change the username (`NB_USER`) of the default user."""
     nb_user = "nayvoj"
@@ -44,13 +57,16 @@ def test_nb_user_change(container: TrackedContainer) -> None:
         command=["sleep", "infinity"],
     )
 
-    # Give the chown time to complete.
-    # Use sleep, not wait, because the container sleeps forever.
-    time.sleep(1)
+    # Wait until the start script has finished preparing the user:
+    # the rename, home copy, and chown all happen before this line is logged.
+    # We can't wait for the container itself, because it sleeps forever.
+    assert wait_until(
+        lambda: f"Running as {nb_user}:" in container.get_logs(), timeout=30
+    ), "start.sh didn't finish preparing the user"
     LOGGER.info(f"Checking if the user is changed to {nb_user} by the start script ...")
     output = container.get_logs()
-    assert "ERROR" not in output
-    assert "WARNING" not in output
+    assert not TrackedContainer.get_errors(output)
+    assert not TrackedContainer.get_warnings(output)
     assert (
         f"username: jovyan       -> {nb_user}" in output
     ), f"User is not changed to {nb_user}"
@@ -175,6 +191,27 @@ def test_group_add(container: TrackedContainer) -> None:
     )
 
 
+def test_conda_dir_group_inheritance(container: TrackedContainer) -> None:
+    """Files and directories created under /opt/conda at runtime by an arbitrary
+    UID should inherit the users group (via the setgid bit set by fix-permissions),
+    so they stay manageable when the container is later run with a different UID."""
+    logs = container.run_and_wait(
+        timeout=10,
+        no_warnings=False,
+        user="1010:1010",
+        group_add=["users"],
+        command=[
+            "bash",
+            "-c",
+            "mkdir /opt/conda/test-dir && "
+            + "touch /opt/conda/test-dir/test-file && "
+            + "stat -c '%n %G %a' /opt/conda/test-dir /opt/conda/test-dir/test-file",
+        ],
+    )
+    assert "/opt/conda/test-dir users 2755" in logs
+    assert "/opt/conda/test-dir/test-file users 644" in logs
+
+
 def test_set_uid(container: TrackedContainer) -> None:
     """Container should run with the specified uid and NB_USER.
     The /home/jovyan directory will not be writable since it's owned by 1000:users.
@@ -240,9 +277,9 @@ def test_jupyter_env_vars_to_unset(
 ) -> None:
     """Environment variables names listed in JUPYTER_ENV_VARS_TO_UNSET
     should be unset in the final environment."""
-    root_args = {"user": "root"} if enable_root else {}
     logs = container.run_and_wait(
         timeout=10,
+        user="root" if enable_root else None,
         environment=[
             "JUPYTER_ENV_VARS_TO_UNSET=SECRET_ANIMAL,UNUSED_ENV,SECRET_FRUIT",
             "FRUIT=bananas",
@@ -254,7 +291,6 @@ def test_jupyter_env_vars_to_unset(
             "-c",
             "echo I like ${FRUIT} and ${SECRET_FRUIT:-stuff}, and love ${SECRET_ANIMAL:-to keep secrets}!",
         ],
-        **root_args,  # type: ignore
     )
     assert "I like bananas and stuff, and love to keep secrets!" in logs
 

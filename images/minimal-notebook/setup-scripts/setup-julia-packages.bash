@@ -5,7 +5,6 @@ set -exuo pipefail
 # - The JULIA_PKGDIR environment variable is set
 # - Julia is already set up, with the setup_julia.py command
 
-
 # If we don't specify what CPUs the precompilation should be done for, it's
 # *only* done for the target of the host doing the compilation.  When the
 # container runs on a host that's the same architecture, but a *different*

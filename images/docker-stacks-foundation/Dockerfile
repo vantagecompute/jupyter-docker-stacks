@@ -1,9 +1,18 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
-# Ubuntu 24.04 (noble)
-# https://hub.docker.com/_/ubuntu/tags?page=1&name=noble
-ARG ROOT_IMAGE=ubuntu:26.04
+# This build arg allows building the image based on a different root image
+ARG ROOT_IMAGE=default_root_image
+
+# Ubuntu 26.04 (resolute)
+# https://hub.docker.com/_/ubuntu/tags?page=1&name=resolute
+# Referenced as a build stage, so dependabot is able to keep the version and digest up to date
+FROM ubuntu:26.04@sha256:c098726dd9b9733f3e885f8de0ef375206a311b0a317eadc40d347b1115fb944 AS default_root_image
+
+# Micromamba is taken from the official image, pinned by digest for integrity
+# Dependabot keeps this version and digest up to date (`docker` ecosystem covers this directory)
+# The binary is bind-mounted into the install RUN below, so it is not added to any image layer
+FROM mambaorg/micromamba:2.8.1@sha256:fb18405d6004af757a38ec498a078240b4fd5549146990a484c28bb7e78aace4 AS micromamba
 
 FROM $ROOT_IMAGE
 
@@ -32,8 +41,6 @@ RUN apt-get update --yes && \
     #   as the Ubuntu base image is rebuilt too seldom sometimes (less than once a month)
     apt-get upgrade --yes && \
     apt-get install --yes --no-install-recommends \
-    # - bzip2 is necessary to extract the micromamba executable.
-    bzip2 \
     ca-certificates \
     locales \
     # - `netbase` provides /etc/{protocols,rpc,services}, part of POSIX
@@ -75,9 +82,8 @@ RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashr
     echo 'eval "$(conda shell.bash hook)"' >> /etc/skel/.bashrc
 
 # Delete existing user with UID="${NB_UID}" if it exists
-# hadolint ignore=SC2046
-RUN if grep -q "${NB_UID}" /etc/passwd; then \
-        userdel --remove $(id -un "${NB_UID}"); \
+RUN if id -un "${NB_UID}" >/dev/null 2>&1; then \
+        userdel --remove "$(id -un "${NB_UID}")"; \
     fi
 
 # Create "${NB_USER}" user (`jovyan` by default) with UID="${NB_UID}" (`1000` by default) and in the 'users' group
@@ -92,11 +98,12 @@ RUN echo "auth requisite pam_deny.so" >> /etc/pam.d/su && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
-# macOS Rosetta virtualization creates junk directory which gets owned by root further up.
-# It'll get re-created, but as USER runner after the next directive so hopefully should not cause permission issues.
-#
-# More info: https://github.com/jupyter/docker-stacks/issues/2296
-RUN rm -rf "/home/${NB_USER}/.cache/"
+# Pre-create the cache dir owned by the user, macOS Rosetta junk can then only appear inside it
+RUN rm -rf "/home/${NB_USER}/.cache/" && \
+    mkdir -p "/home/${NB_USER}/.cache" && \
+    chown "${NB_USER}:${NB_GID}" "/home/${NB_USER}/.cache"
+
+RUN rm -rf "/home/${NB_USER}/.cache/rosetta"
 
 USER ${NB_UID}
 
@@ -107,39 +114,33 @@ ARG PYTHON_VERSION=3.14
 RUN mkdir "/home/${NB_USER}/work" && \
     fix-permissions "/home/${NB_USER}"
 
-# Download and install Micromamba, and initialize the Conda prefix.
+# Install the Conda prefix using Micromamba from the digest-pinned official image (see top of this file).
 #   <https://github.com/mamba-org/mamba#micromamba>
 #   Similar projects using Micromamba:
 #     - Micromamba-Docker: <https://github.com/mamba-org/micromamba-docker>
 #     - repo2docker: <https://github.com/jupyterhub/repo2docker>
 # Install Python, Mamba, and jupyter_core
-# Cleanup temporary files and remove Micromamba
+# Cleanup temporary files
 # Correct permissions
 # Do all this in a single RUN command to avoid duplicating all of the
 # files across image layers when the permissions change
 COPY --chown="${NB_UID}:${NB_GID}" initial-condarc "${CONDA_DIR}/.condarc"
 WORKDIR /tmp
-RUN set -x && \
-    arch=$(uname -m) && \
-    if [ "${arch}" = "x86_64" ]; then \
-        # Should be simpler, see <https://github.com/mamba-org/mamba/issues/1437>
-        arch="64"; \
-    fi && \
-    # https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html#linux-and-macos
-    wget --progress=dot:giga -O - \
-        "https://micro.mamba.pm/api/micromamba/linux-${arch}/latest" | tar -xvj bin/micromamba && \
+RUN --mount=type=bind,from=micromamba,source=/bin/micromamba,target=/usr/local/bin/micromamba \
+    set -x && \
     PYTHON_SPECIFIER="python=${PYTHON_VERSION}" && \
-    if [[ "${PYTHON_VERSION}" == "default" ]]; then PYTHON_SPECIFIER="python"; fi && \
+    if [ "${PYTHON_VERSION}" = "default" ]; then PYTHON_SPECIFIER="python"; fi && \
     # Install the packages
-    ./bin/micromamba install \
+    micromamba install \
         --root-prefix="${CONDA_DIR}" \
         --prefix="${CONDA_DIR}" \
         --yes \
         'jupyter_core' \
         'conda' \
-        'mamba' \
+        # Install mamba with the same version as the micromamba image pinned above
+        # (they are released together), so dependabot keeps the version up to date
+        "mamba==$(micromamba --version)" \
         "${PYTHON_SPECIFIER}" && \
-    rm -rf /tmp/bin/ && \
     # Pin major.minor version of python
     # https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning
     mamba list --full-name 'python' | awk 'END{sub("[^.]*$", "*", $2); print $1 " " $2}' >> "${CONDA_DIR}/conda-meta/pinned" && \
@@ -161,11 +162,7 @@ RUN mkdir /usr/local/bin/start-notebook.d && \
 
 COPY 10activate-conda-env.sh /usr/local/bin/before-notebook.d/
 
-# macOS Rosetta virtualization creates junk directory which gets owned by root further up.
-# It'll get re-created, but as USER runner after the next directive so hopefully should not cause permission issues.
-#
-# More info: https://github.com/jupyter/docker-stacks/issues/2296
-RUN rm -rf "/home/${NB_USER}/.cache/"
+RUN rm -rf "/home/${NB_USER}/.cache/rosetta"
 
 # Switch back to jovyan to avoid accidental container runs as root
 USER ${NB_UID}

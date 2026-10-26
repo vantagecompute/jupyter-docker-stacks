@@ -34,6 +34,9 @@ ARG scala_version
 # But it seems to be slower, that's why we use the recommended site for download
 ARG spark_download_url="https://dlcdn.apache.org/spark/"
 ARG derby_version="10.17.1.0"
+# The sha256 checksum of the derby jar from Maven Central
+# It must be updated together with derby_version
+ARG derby_sha256="764e4c133f860a8876e835ef2306efecad27a742d27f05bc4bce669432c6b397"
 
 ENV SPARK_HOME=/usr/local/spark
 ENV PATH="${PATH}:${SPARK_HOME}/bin"
@@ -49,14 +52,13 @@ RUN /opt/setup-scripts/setup_spark.py \
     --spark-download-url="${spark_download_url}"
 
 # Spark bundles Derby 10.16.1.1 by default; replace it with a fixed release.
+# The exact filename makes the build fail loudly once Spark bumps the bundled version.
 RUN set -eux; \
-    derby_jar="$(find "${SPARK_HOME}/jars" -maxdepth 1 -type f -name 'derby-*.jar' | head -n 1)"; \
-    test -n "${derby_jar}"; \
-    derby_dir="$(dirname "${derby_jar}")"; \
+    rm "${SPARK_HOME}/jars/derby-10.16.1.1.jar"; \
     curl -fsSL -o "/tmp/derby-${derby_version}.jar" \
       "https://repo1.maven.org/maven2/org/apache/derby/derby/${derby_version}/derby-${derby_version}.jar"; \
-    rm -f "${derby_jar}"; \
-    mv "/tmp/derby-${derby_version}.jar" "${derby_dir}/"
+    echo "${derby_sha256} */tmp/derby-${derby_version}.jar" | sha256sum -c -; \
+    mv "/tmp/derby-${derby_version}.jar" "${SPARK_HOME}/jars/"
 
 # Spark 4.2.0 bundles Netty 4.2.13.Final, affected by CVE-2026-75595
 # (GHSA-c4c3-7fpv-j4q5, fixed in 4.2.17.Final). Replace every bundled Netty jar
@@ -94,34 +96,24 @@ RUN set -eux; \
 COPY ipython_kernel_config.py "/etc/ipython/"
 RUN fix-permissions "/etc/ipython/"
 
-# macOS Rosetta virtualization creates junk directory which gets owned by root further up.
-# It'll get re-created, but as USER runner after the next directive so hopefully should not cause permission issues.
-#
-# More info: https://github.com/jupyter/docker-stacks/issues/2296
 # hadolint ignore=DL3059
-RUN rm -rf "/home/${NB_USER}/.cache/"
+RUN rm -rf "/home/${NB_USER}/.cache/rosetta"
 
 USER ${NB_UID}
 
 # Install pyarrow
-# NOTE: It's important to ensure compatibility between Pandas versions.
-# The pandas version in this Dockerfile should match the version
-# on which the Pandas API for Spark is built.
-# To find the right version, check the pandas version being installed here:
-# https://github.com/apache/spark/blob/<SPARK_VERSION>/dev/infra/Dockerfile
-# A single-constraint spec: mamba records a range such as "pandas>=2.2.3,<3" in
-# conda-meta/history as pandas[version=">=2.2.3,<3"], which
-# `mamba env export --from-history --json` then emits as invalid JSON. "2"
-# means 2.*, so pandas stays below 3 as pyspark needs.
-ARG PANDAS_VERSION_SPEC="pandas=2"
+# The pandas version must match the version on which the Pandas API for Spark is built,
+# setup_spark.py resolves it from https://github.com/apache/spark/blob/<SPARK_VERSION>/dev/infra/Dockerfile
 RUN mamba install --yes \
     'grpcio-status' \
     'grpcio' \
-    "${PANDAS_VERSION_SPEC}" \
+    "pandas=$(cat /opt/setup-scripts/pandas-version.txt)" \
     'pyarrow' && \
     mamba clean --all -f -y && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
+
+RUN rm -rf "/home/${NB_USER}/.cache/rosetta"
 
 WORKDIR "${HOME}"
 EXPOSE 4040

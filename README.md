@@ -6,7 +6,7 @@
 [![Discourse badge](https://img.shields.io/discourse/users.svg?color=%23f37626&server=https%3A%2F%2Fdiscourse.jupyter.org)](https://discourse.jupyter.org/ "Jupyter Discourse Forum")
 [![Binder badge](https://static.mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jupyter/docker-stacks/main?urlpath=lab/tree/README.ipynb "Launch a quay.io/jupyter/base-notebook container on mybinder.org")
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black "Black code formatter")
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/jupyter/docker-stacks?label=openssf+scorecard)](https://github.com/jupyter/docker-stacks/security "OpenSSF Scorecard")
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/jupyter/docker-stacks?label=openssf+scorecard)](https://scorecard.dev/viewer/?uri=github.com/jupyter/docker-stacks "OpenSSF Scorecard")
 [![License badge](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/license/BSD-3-Clause "Modified BSD License")
 
 Jupyter Docker Stacks are a set of ready-to-run [Docker images](https://quay.io/organization/jupyter) containing Jupyter applications and interactive computing tools.
@@ -32,14 +32,14 @@ Older images are available on Docker Hub, but they will no longer be updated.
 
 ### Example 1
 
-This command pulls the `jupyter/scipy-notebook` image tagged `2025-12-31` from Quay.io if it is not already present on the local host.
+This command pulls the `jupyter/scipy-notebook` image tagged `2026-07-28` from Quay.io if it is not already present on the local host.
 It then starts a container running a Jupyter Server with the JupyterLab frontend and exposes the container's internal port `8888` to port `10000` of the host machine:
 
 ```bash
-docker run -p 10000:8888 quay.io/jupyter/scipy-notebook:2025-12-31
+docker run -p 10000:8888 quay.io/jupyter/scipy-notebook:2026-07-28
 ```
 
-You can modify the port on which the container's port is exposed by [changing the value of the `-p` option](https://docs.docker.com/engine/containers/run/#exposed-ports) to `-p 8888:8888`.
+You can modify the host port to which the container's port is mapped by [changing the value of the `-p` option](https://docs.docker.com/engine/containers/run/#exposed-ports) to `-p 8888:8888`.
 
 Visiting `http://<hostname>:10000/?token=<token>` in a browser loads JupyterLab,
 where:
@@ -51,11 +51,11 @@ The container remains intact for restart after the Server exits.
 
 ### Example 2
 
-This command pulls the `jupyter/datascience-notebook` image tagged `2025-12-31` from Quay.io if it is not already present on the local host.
+This command pulls the `jupyter/datascience-notebook` image tagged `2026-07-28` from Quay.io if it is not already present on the local host.
 It then starts an _ephemeral_ container running a Jupyter Server with the JupyterLab frontend and exposes the server on host port 10000.
 
 ```bash
-docker run -it --rm -p 10000:8888 -v "${PWD}":/home/jovyan/work quay.io/jupyter/datascience-notebook:2025-12-31
+docker run -it --rm -p 10000:8888 -v "${PWD}":/home/jovyan/work quay.io/jupyter/datascience-notebook:2026-07-28
 ```
 
 The use of the `-v` flag in the command mounts the current working directory on the host (`${PWD}` in the example command) as `/home/jovyan/work` in the container.
@@ -101,33 +101,47 @@ more information is available in the [documentation](https://jupyter-docker-stac
 ## CPU Architectures
 
 - We publish containers for both `x86_64` and `aarch64` platforms
-- Single-platform images have either `aarch64-` or `x86_64-` tag prefixes, for example, `quay.io/jupyter/base-notebook:aarch64-python-3.11.6`
+- Single-platform images have either `aarch64-` or `x86_64-` tag prefixes, for example, `quay.io/jupyter/base-notebook:aarch64-python-3.13.14`
 - Starting from `2022-09-21`, we create multi-platform images (except `tensorflow-notebook`)
 - Starting from `2023-06-01`, we create a multi-platform `tensorflow-notebook` image as well
 - Starting from `2024-02-24`, we create CUDA enabled variants of `pytorch-notebook` image for `x86_64` platform
 - Starting from `2024-03-26`, we create CUDA enabled variant of `tensorflow-notebook` image for `x86_64` platform
+- Starting from `2025-12-02`, we create CUDA enabled variants of `pytorch-notebook` and `tensorflow-notebook` images for `aarch64` platform as well
 
 ## Using old images
 
-[![Python versions badge](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/ "Python versions supported")
+[![Python versions badge](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/ "Python versions supported")
 
 This project only builds one set of images at a time.
+The weekly build (`latest` tag) is based on `Ubuntu 26.04` and `Python 3.13`.
 If you want to use the older `Ubuntu` and/or `Python` version, you can use the following images:
 
-| Build Date   | Ubuntu | Python | Tag            |
-| ------------ | ------ | ------ | -------------- |
-| 2022-10-09   | 20.04  | 3.7    | `1aac87eb7fa5` |
-| 2022-10-09   | 20.04  | 3.8    | `a374cab4fcb6` |
-| 2022-10-09   | 20.04  | 3.9    | `5ae537728c69` |
-| 2022-10-09   | 20.04  | 3.10   | `f3079808ca8c` |
-| 2022-10-09   | 22.04  | 3.7    | `b86753318aa1` |
-| 2022-10-09   | 22.04  | 3.8    | `7285848c0a11` |
-| 2022-10-09   | 22.04  | 3.9    | `ed2908bbb62e` |
-| 2023-05-30   | 22.04  | 3.10   | `4d70cf8da953` |
-| 2024-08-26   | 22.04  | 3.11   | `00987883e58d` |
-| 2024-10-22   | 24.04  | 3.11   | `b74418220768` |
-| 2025-08-11   | 24.04  | 3.12   | `82d322f00937` |
-| weekly build | 24.04  | 3.13   | `latest`       |
+### Ubuntu 24.04
+
+| Build Date | Python | Tag            |
+| ---------- | ------ | -------------- |
+| 2024-10-22 | 3.11   | `b74418220768` |
+| 2025-08-11 | 3.12   | `82d322f00937` |
+| 2026-09-28 | 3.13   | `ac62373f9f60` |
+
+### Ubuntu 22.04
+
+| Build Date | Python | Tag            |
+| ---------- | ------ | -------------- |
+| 2022-10-09 | 3.7    | `b86753318aa1` |
+| 2022-10-09 | 3.8    | `7285848c0a11` |
+| 2022-10-09 | 3.9    | `ed2908bbb62e` |
+| 2023-05-30 | 3.10   | `4d70cf8da953` |
+| 2024-08-26 | 3.11   | `00987883e58d` |
+
+### Ubuntu 20.04
+
+| Build Date | Python | Tag            |
+| ---------- | ------ | -------------- |
+| 2022-10-09 | 3.7    | `1aac87eb7fa5` |
+| 2022-10-09 | 3.8    | `a374cab4fcb6` |
+| 2022-10-09 | 3.9    | `5ae537728c69` |
+| 2022-10-09 | 3.10   | `f3079808ca8c` |
 
 ## Contributing
 
